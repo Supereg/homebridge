@@ -129,6 +129,7 @@ export const enum APIEvent {
 }
 
 export const enum InternalAPIEvent {
+  REGISTER_ALIAS = "registerAlias",
   REGISTER_ACCESSORY = "registerAccessory",
   REGISTER_PLATFORM = "registerPlatform",
 
@@ -157,6 +158,8 @@ export interface API {
   readonly platformAccessory: typeof PlatformAccessory;
   // ------------------------------------------------------------------------
 
+  registerPluginAlias(alias: PluginIdentifier): void;
+
   registerAccessory(accessoryName: AccessoryName, constructor: AccessoryPluginConstructor): void;
   registerAccessory(pluginIdentifier: PluginIdentifier, accessoryName: AccessoryName, constructor: AccessoryPluginConstructor): void;
 
@@ -181,6 +184,7 @@ export declare interface HomebridgeAPI {
   on(event: "shutdown", listener: () => void): this;
 
   // Internal events (using enums directly to restrict access)
+  on(event: InternalAPIEvent.REGISTER_ALIAS, listener: (alias: PluginIdentifier) => void): this;
   on(event: InternalAPIEvent.REGISTER_ACCESSORY, listener: (accessoryName: AccessoryName, accessoryConstructor: AccessoryPluginConstructor, pluginIdentifier?: PluginIdentifier) => void): this;
   on(event: InternalAPIEvent.REGISTER_PLATFORM, listener: (platformName: PlatformName, platformConstructor: PlatformPluginConstructor, pluginIdentifier?: PluginIdentifier) => void): this;
 
@@ -193,6 +197,7 @@ export declare interface HomebridgeAPI {
   emit(event: "didFinishLaunching"): boolean;
   emit(event: "shutdown"): boolean;
 
+  emit(event: InternalAPIEvent.REGISTER_ALIAS, alias: PluginIdentifier): boolean;
   emit(event: InternalAPIEvent.REGISTER_ACCESSORY, accessoryName: AccessoryName, accessoryConstructor: AccessoryPluginConstructor, pluginIdentifier?: PluginIdentifier): boolean;
   emit(event: InternalAPIEvent.REGISTER_PLATFORM, platformName: PlatformName, platformConstructor: PlatformPluginConstructor, pluginIdentifier?: PluginIdentifier): boolean;
 
@@ -205,7 +210,7 @@ export declare interface HomebridgeAPI {
 
 export class HomebridgeAPI extends EventEmitter implements API {
 
-  public readonly version = 2.5; // homebridge API version
+  public readonly version = 2.6; // homebridge API version
   public readonly serverVersion = getVersion(); // homebridge node module version
 
   // ------------------ LEGACY EXPORTS FOR PRE TYPESCRIPT  ------------------
@@ -233,6 +238,10 @@ export class HomebridgeAPI extends EventEmitter implements API {
 
   signalShutdown(): void {
     this.emit(APIEvent.SHUTDOWN);
+  }
+
+  registerPluginAlias(alias: PluginIdentifier): void {
+    this.emit(InternalAPIEvent.REGISTER_ALIAS, alias);
   }
 
   registerAccessory(accessoryName: AccessoryName, constructor: AccessoryPluginConstructor): void;

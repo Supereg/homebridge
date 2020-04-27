@@ -75,6 +75,7 @@ export class PluginManager {
 
     this.loadDefaultPaths();
 
+    this.api.on(InternalAPIEvent.REGISTER_ALIAS, this.handleRegisterPluginAlias.bind(this));
     this.api.on(InternalAPIEvent.REGISTER_ACCESSORY, this.handleRegisterAccessory.bind(this));
     this.api.on(InternalAPIEvent.REGISTER_PLATFORM, this.handleRegisterPlatform.bind(this));
   }
@@ -148,6 +149,21 @@ export class PluginManager {
     this.currentInitializingPlugin = undefined;
   }
 
+  private handleRegisterPluginAlias(alias: PluginIdentifier): void {
+    if (!this.currentInitializingPlugin) {
+      throw new Error(`Unexpected plugin alias registration. Alias '${alias}' was tried tro register outside the initializer function!`);
+    }
+
+    const identifier = this.currentInitializingPlugin.getPluginIdentifier();
+
+    if (this.pluginIdentifierTranslation.has(alias)) {
+      // ensure no plugin can spoof to be someone else
+      throw new Error(`Plugin '${identifier}' tried registering the alias '${alias}' which was already registered by '${this.pluginIdentifierTranslation.get(alias)}'!`);
+    }
+
+    this.pluginIdentifierTranslation.set(alias, identifier);
+  }
+
   private handleRegisterAccessory(name: AccessoryName, constructor: AccessoryPluginConstructor, pluginIdentifier?: PluginIdentifier): void {
     if (!this.currentInitializingPlugin) {
       throw new Error(`Unexpected accessory registration. Plugin ${pluginIdentifier? `'${pluginIdentifier}' `: ""}tried to register outside the initializer function!`);
@@ -155,7 +171,7 @@ export class PluginManager {
 
     if (pluginIdentifier && pluginIdentifier !== this.currentInitializingPlugin.getPluginIdentifier()) {
       log.info(`Plugin '${this.currentInitializingPlugin.getPluginIdentifier()}' tried to register with an incorrect plugin identifier: '${pluginIdentifier}'. Please report this to the developer!`);
-      this.pluginIdentifierTranslation.set(pluginIdentifier, this.currentInitializingPlugin.getPluginIdentifier());
+      this.handleRegisterPluginAlias(pluginIdentifier);
     }
 
     this.currentInitializingPlugin.registerAccessory(name, constructor);
@@ -175,7 +191,7 @@ export class PluginManager {
 
     if (pluginIdentifier && pluginIdentifier !== this.currentInitializingPlugin.getPluginIdentifier()) {
       log.debug(`Plugin '${this.currentInitializingPlugin.getPluginIdentifier()}' tried to register with an incorrect plugin identifier: '${pluginIdentifier}'. Please report this to the developer!`);
-      this.pluginIdentifierTranslation.set(pluginIdentifier, this.currentInitializingPlugin.getPluginIdentifier());
+      this.handleRegisterPluginAlias(pluginIdentifier);
     }
 
     this.currentInitializingPlugin.registerPlatform(name, constructor);
